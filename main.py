@@ -1,6 +1,7 @@
 # coding: utf-8
 import argparse
 import time
+from datetime import datetime
 import math
 import torch
 import torch.nn as nn
@@ -39,7 +40,7 @@ parser.add_argument('--seed', type=int, default=1234,
                     help='set random seed')
 parser.add_argument('--cuda', type=bool, default=True,
                     help='use CUDA')
-parser.add_argument('--log-interval', type=int, default=200, metavar='N',
+parser.add_argument('--log-interval', type=int, default=50, metavar='N',
                     help='report interval')
 parser.add_argument('--save_file', type=str, default='./saved_model/model.pt',
                     help='path to save the final model')
@@ -134,8 +135,8 @@ def train(corpus, opt):
                 ppl = math.exp(cur_loss)
             except OverflowError:
                 ppl = float('inf')
-            print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:06.5f} |{:5.2f} ms/batch | '
-                    'loss {:5.2f} | ppl {:8.2f}'.format(
+            print('{} | epoch {:3d} | {:5d}/{:5d} batches | lr {:06.5f} | {:5.2f} ms/batch | '
+                    'loss {:5.2f} | ppl {:8.2f}'.format(datetime.now().strftime('%m-%d %H:%M:%S'),
                 epoch, batch, len(data_source) // args.max_sql, lr,
                 elapsed * 1000 / args.log_interval, cur_loss, ppl))
             total_loss = 0
@@ -151,11 +152,11 @@ for epoch in range(1, args.epochs+1):
         ppl = math.exp(val_loss)
     except OverflowError:
         ppl = float('inf')
-    print('-' * 89)
-    print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
-          'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
+    print('-' * 106)
+    print('{} | end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
+          'valid ppl {:8.2f}'.format(datetime.now().strftime('%m-%d %H:%M:%S'), epoch, (time.time() - epoch_start_time),
                                      val_loss, ppl))
-    print('-' * 89)
+    print('-' * 106)
     # Save the model if the validation loss is the best we've seen so far.
     if not best_val_loss or val_loss < best_val_loss:
         with open(args.save_file, 'wb') as f:
@@ -173,8 +174,8 @@ with open(args.save, 'rb') as f:
 
 # Run on test data.
 test_loss = evaluate(corpus)
-print('=' * 89)
-print('| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(
-    test_loss, math.exp(test_loss)))
-print('=' * 89)
+print('=' * 106)
+print('{} | End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(
+    datetime.now().strftime('%m-%d %H:%M:%S'), test_loss, math.exp(test_loss)))
+print('=' * 106)
 
