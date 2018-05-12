@@ -114,6 +114,7 @@ def train(corpus, opt):
     total_loss = 0.
     start_time = time.time()
     nvoc = len(corpus.word_id)
+    #从这里来看init hidden weight在每个epoch都被重新初始化了？
     hidden = model.init_hidden(train_batch_size)
     # 应该是因为文本数量够多，所以range不长等于bptt，使得每个batch之间没有重合？
     for batch, i in enumerate(range(0, data_source.size(0) - 1, args.max_sql)):
@@ -143,6 +144,11 @@ def train(corpus, opt):
 
 # Loop over epochs.
 best_val_loss = None
+patience = 5
+wait = 0
+# for name, param in model.named_parameters():
+#     if param.requires_grad:
+#         print(name)
 for epoch in range(1, args.epochs+1):
     epoch_start_time = time.time()
     train(corpus, opt)
@@ -161,10 +167,18 @@ for epoch in range(1, args.epochs+1):
         with open(args.save_file, 'wb') as f:
             torch.save(model, f)
         best_val_loss = val_loss
+        wait = 0
     else:
+        wait += 1
+        if wait >= patience:
+            print("early stop!")
+            break
         # Anneal the learning rate if no improvement has been seen in the validation dataset.
-        lr /= 2.0
-        opt = optim.Adam(model.parameters(), lr=lr)
+        if lr > 1e-5:
+            lr /= 2.0
+            print("lr = {}".format(lr))
+            opt = optim.Adam(model.parameters(), lr=lr)
+    # use variant batch_size
     if train_batch_size < 200:
         train_batch_size = int(train_batch_size*2)
         if train_batch_size > 200:
@@ -175,7 +189,7 @@ for epoch in range(1, args.epochs+1):
         print("train_batch_size = {0}, log_interval = {1}".format(train_batch_size, log_interval))
 
 # Load the best saved model.
-with open(args.save_dir, 'rb') as f:
+with open(args.save_file, 'rb') as f:
     model = torch.load(f)
     model.rnn.flatten_parameters()
 

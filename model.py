@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import modules
 
 class LMModel(nn.Module):
     # Language model is composed of three parts: a word embedding layer, a rnn network and a output layer. 
@@ -12,6 +13,8 @@ class LMModel(nn.Module):
         self.encoder = nn.Embedding(nvoc, ninp)
         self.rnn_type = rnn_type
         self.rnn = getattr(nn, rnn_type)(ninp, nhid, nlayers, dropout=dropout)
+        # self.rnn = modules.LayerNormLSTM(ninp, nhid, bias=True, dropout=dropout,
+        #               dropout_method='pytorch', ln_preact=True, learnable=True)
         self.decoder = nn.Linear(nhid, nvoc)
         if tie_weights:
             if nhid != ninp:
