@@ -20,6 +20,7 @@ class LMModel(nn.Module):
         self.init_weights()
         self.nhid = nhid
         self.nlayers = nlayers
+        # self.layer_norm = nn.LayerNorm(input.size()[1:])
 
     def init_weights(self):
         init_uniform = 0.1
@@ -30,6 +31,7 @@ class LMModel(nn.Module):
     def forward(self, input, hidden):
         embeddings = self.drop(self.encoder(input))
         output, hidden = self.rnn(embeddings, hidden)
+        # output = torch.transpose(output, 0, 1)
         output = self.drop(output)
         decoded = self.decoder(output.view(output.size(0)*output.size(1), output.size(2)))
         return decoded.view(output.size(0), output.size(1), decoded.size(1)), hidden

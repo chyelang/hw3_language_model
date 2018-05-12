@@ -5,6 +5,7 @@ class Corpus(object):
     def __init__(self, path, batch_size):
         self.vocabulary = []
         self.word_id = {}
+        print('preparing corpus...')
         self.train = self.tokenize(os.path.join(path, 'train.txt'))
         self.valid = self.tokenize(os.path.join(path, 'valid.txt'))
 

@@ -165,11 +165,14 @@ for epoch in range(1, args.epochs+1):
         # Anneal the learning rate if no improvement has been seen in the validation dataset.
         lr /= 2.0
         opt = optim.Adam(model.parameters(), lr=lr)
-    if train_batch_size < 250:
-        train_batch_size = int(train_batch_size*1.5)
+    if train_batch_size < 200:
+        train_batch_size = int(train_batch_size*2)
+        if train_batch_size > 200:
+            train_batch_size = 200
         valid_batch_size = train_batch_size*2
         corpus = data.Corpus(args.data, {"train": train_batch_size, "valid": valid_batch_size})
         log_interval = len(corpus.train) // args.max_sql // 15
+        print("train_batch_size = {0}, log_interval = {1}".format(train_batch_size, log_interval))
 
 # Load the best saved model.
 with open(args.save_dir, 'rb') as f:
