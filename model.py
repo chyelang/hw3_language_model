@@ -38,6 +38,7 @@ class LMModel(nn.Module):
         weight = next(self.parameters())
         if self.rnn_type == 'LSTM':
              #这里所说的hidden state包括ht和ct，lstm两者都有，而gru中只有ct
+             #这里的init weight也被加入到了可学习的参数中？
             return (weight.new_zeros(self.nlayers, bsz, self.nhid),
                     weight.new_zeros(self.nlayers, bsz, self.nhid))
         else:

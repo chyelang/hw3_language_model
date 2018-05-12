@@ -26,7 +26,7 @@ parser.add_argument('--lr', type=float, default=0.001,
                     help='initial learning rate')
 parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
-parser.add_argument('--epochs', type=int, default=40,
+parser.add_argument('--epochs', type=int, default=3,
                     help='upper epoch limit')
 parser.add_argument('--batch_size', type=int, default=20, metavar='N',
                     help='batch size')
@@ -40,8 +40,6 @@ parser.add_argument('--seed', type=int, default=1234,
                     help='set random seed')
 parser.add_argument('--cuda', type=bool, default=True,
                     help='use CUDA')
-parser.add_argument('--log-interval', type=int, default=50, metavar='N',
-                    help='report interval')
 parser.add_argument('--save_file', type=str, default='./saved_model/model.pt',
                     help='path to save the final model')
 parser.add_argument('--gpu_id', type=int, default=0, help='GPU device id used')
@@ -61,10 +59,11 @@ else:
     device = torch.device("cpu")
 
 train_batch_size = args.batch_size
-valid_batch_size = args.batch_size*3
+valid_batch_size = args.batch_size*2
 
 # load train and valid data
 corpus = data.Corpus(args.data, {"train": train_batch_size, "valid": valid_batch_size})
+log_interval = len(corpus.train) // args.max_sql // 15
 
 # build the model
 nvoc = len(corpus.word_id)
@@ -128,8 +127,8 @@ def train(corpus, opt):
         opt.step()
         total_loss += loss.item()
 
-        if batch % args.log_interval == 0 and batch > 0:
-            cur_loss = total_loss / args.log_interval
+        if batch % log_interval == 0 and batch > 0:
+            cur_loss = total_loss / log_interval
             elapsed = time.time() - start_time
             try:
                 ppl = math.exp(cur_loss)
@@ -138,7 +137,7 @@ def train(corpus, opt):
             print('{} | epoch {:3d} | {:5d}/{:5d} batches | lr {:06.5f} | {:5.2f} ms/batch | '
                     'loss {:5.2f} | ppl {:8.2f}'.format(datetime.now().strftime('%m-%d %H:%M:%S'),
                 epoch, batch, len(data_source) // args.max_sql, lr,
-                elapsed * 1000 / args.log_interval, cur_loss, ppl))
+                elapsed * 1000 / log_interval, cur_loss, ppl))
             total_loss = 0
             start_time = time.time()
 
@@ -164,11 +163,16 @@ for epoch in range(1, args.epochs+1):
         best_val_loss = val_loss
     else:
         # Anneal the learning rate if no improvement has been seen in the validation dataset.
-        lr /= 4.0
+        lr /= 2.0
         opt = optim.Adam(model.parameters(), lr=lr)
+    if train_batch_size < 250:
+        train_batch_size = int(train_batch_size*1.5)
+        valid_batch_size = train_batch_size*2
+        corpus = data.Corpus(args.data, {"train": train_batch_size, "valid": valid_batch_size})
+        log_interval = len(corpus.train) // args.max_sql // 15
 
 # Load the best saved model.
-with open(args.save, 'rb') as f:
+with open(args.save_dir, 'rb') as f:
     model = torch.load(f)
     model.rnn.flatten_parameters()
 
