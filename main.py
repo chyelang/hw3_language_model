@@ -14,7 +14,7 @@ import os
 parser = argparse.ArgumentParser(description='PyTorch ptb Language Model')
 parser.add_argument('--data', type=str, default='./data/ptb',
                     help='location of the data corpus')
-parser.add_argument('--model', type=str, default='LSTM',
+parser.add_argument('--model', type=str, default='GRU',
                     help='type of recurrent net (LSTM, GRU)')
 parser.add_argument('--ninp', type=int, default=200,
                     help='size of word embeddings(input)')
@@ -59,6 +59,7 @@ else:
     device = torch.device("cpu")
 
 train_batch_size = args.batch_size
+# valid_batch_size = args.batch_size
 valid_batch_size = args.batch_size*2
 
 # load train and valid data
@@ -67,7 +68,7 @@ log_interval = len(corpus.train) // args.max_sql // 15
 
 # build the model
 nvoc = len(corpus.word_id)
-model = model.LMModel(args.model, nvoc, args.ninp, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
+model = model.LMModel(args.model, nvoc, args.ninp, args.nhid, args.nlayers, args.batch_size, args.dropout, args.tied).to(device)
 criterion = nn.CrossEntropyLoss()
 lr = args.lr
 opt = optim.Adam(model.parameters(), lr=lr)
@@ -88,6 +89,12 @@ def repackage_hidden(h):
     else:
         return tuple(repackage_hidden(v) for v in h)
 
+def get_hidden0(h):
+    if args.model == 'LSTM':
+        return (h[0].data, h[1].data)
+    else:
+        return (h[0].data)
+
 # Evaluation Function
 # Calculate the average cross-entropy loss between the prediction and the ground truth word.
 # And then exp(average cross-entropy loss) is perplexity.
@@ -96,7 +103,9 @@ def evaluate(corpus):
     model.eval()
     total_loss = 0.
     nvoc = len(corpus.word_id)
-    hidden = model.init_hidden(valid_batch_size)
+    # hidden = model.init_hidden(valid_batch_size)
+    # hidden = get_hidden0(model.hidden0)
+    hidden = model.hidden0.data.repeat(1, valid_batch_size, 1)
     with torch.no_grad():
         for i in range(0, corpus.valid.size(0) - 1, args.max_sql):
             data, targets = get_batch(data_source, i)
@@ -115,11 +124,12 @@ def train(corpus, opt):
     start_time = time.time()
     nvoc = len(corpus.word_id)
     #从这里来看init hidden weight在每个epoch都被重新初始化了？
-    hidden = model.init_hidden(train_batch_size)
+    # hidden = model.init_hidden(train_batch_size)
+    # hidden = get_hidden0(model.hidden0)
+    hidden = model.hidden0.data.repeat(1, train_batch_size, 1)
     # 应该是因为文本数量够多，所以range不长等于bptt，使得每个batch之间没有重合？
     for batch, i in enumerate(range(0, data_source.size(0) - 1, args.max_sql)):
         data, targets = get_batch(corpus.train, i)
-        hidden = repackage_hidden(hidden)
         model.zero_grad()
         output, hidden = model(data, hidden)
         loss = criterion(output.view(-1, nvoc), targets)
@@ -127,6 +137,7 @@ def train(corpus, opt):
         torch.nn.utils.clip_grad_norm(model.parameters(), args.clip)
         opt.step()
         total_loss += loss.item()
+        hidden = repackage_hidden(hidden)
 
         if batch % log_interval == 0 and batch > 0:
             cur_loss = total_loss / log_interval
