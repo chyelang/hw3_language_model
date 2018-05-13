@@ -251,7 +251,7 @@ class LayerNormGRU(nn.Module):
 	def forward(self, xs, h):
 		# xs: [bptt*batch_size*hidden_size]
 		# h: [nlayers*batch_size*hidden_size]
-		hs = [None]*self.nlayers
+		hs = h.new_zeros(h.size())
 		ys = []
 		for i in range(xs.size(0)):
 			x = xs.narrow(0, i, 1).squeeze(0)
@@ -263,6 +263,6 @@ class LayerNormGRU(nn.Module):
 			ys.append(x.unsqueeze(0))
 			for i in range(self.nlayers):
 				hs[i] = hs[i].unsqueeze(0)
-			h = torch.cat(hs, 0)
+			h = hs.clone()
 		y = torch.cat(ys, 0)
 		return y, h
