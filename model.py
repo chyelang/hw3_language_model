@@ -14,11 +14,11 @@ class LMModel(nn.Module):
         self.rnn_type = rnn_type
         if rnn_type == "LSTM":
             self.rnn = nn.LSTM(ninp, nhid, nlayers, dropout=dropout)
-            hidden0 = (torch.zeros(nlayers, 1, nhid).uniform_(-0.1, 0.1),
-                       torch.zeros(nlayers, 1, nhid).uniform_(-0.1, 0.1))
+            hidden0 = torch.zeros(2, nlayers, 1, nhid).uniform_(-0.1, 0.1)
             self.hidden0 = nn.Parameter(hidden0, requires_grad=True)
         else:
-            self.rnn = nn.GRU(ninp, nhid, nlayers, dropout=dropout)
+            # self.rnn = nn.GRU(ninp, nhid, nlayers, dropout=dropout)
+            self.rnn = modules.LayerNormGRU(ninp, nhid)
             hidden0 = (torch.zeros(nlayers, 1, nhid).uniform_(-0.1, 0.1))
             self.hidden0 = nn.Parameter(hidden0, requires_grad=True)
         # self.rnn = modules.LayerNormLSTM(ninp, nhid, bias=True, dropout=dropout,
@@ -40,8 +40,12 @@ class LMModel(nn.Module):
         self.decoder.weight.data.uniform_(-init_uniform, init_uniform)
 
     def forward(self, input, hidden):
-        # if hidden is None:
-        #     hidden = self.hidden0.repeat(1,20,1)
+        if hidden is None:
+            batch_size = input.size(1)
+            if self.rnn_type == "LSTM":
+                hidden = self.hidden0.repeat(1,1,batch_size,1)
+            else:
+                hidden = self.hidden0.repeat(1, batch_size, 1)
         embeddings = self.drop(self.encoder(input))
         output, hidden = self.rnn(embeddings, hidden)
         # output = torch.transpose(output, 0, 1)

@@ -20,7 +20,7 @@ parser.add_argument('--ninp', type=int, default=200,
                     help='size of word embeddings(input)')
 parser.add_argument('--nhid', type=int, default=200,
                     help='number of hidden units per layer')
-parser.add_argument('--nlayers', type=int, default=2,
+parser.add_argument('--nlayers', type=int, default=1,
                     help='number of layers')
 parser.add_argument('--lr', type=float, default=0.001,
                     help='initial learning rate')
@@ -99,8 +99,8 @@ def evaluate(corpus):
     nvoc = len(corpus.word_id)
     # hidden = model.init_hidden(valid_batch_size)
     # hidden = get_hidden0(model.hidden0)
-    hidden = model.hidden0.repeat(1, valid_batch_size, 1)
-    # hidden = None
+    # hidden = model.hidden0.repeat(1, valid_batch_size, 1)
+    hidden = None
     with torch.no_grad():
         for i in range(0, corpus.valid.size(0) - 1, args.max_sql):
             data, targets = get_batch(data_source, i)
@@ -123,8 +123,8 @@ def train(corpus, opt):
     #从这里来看init hidden weight在每个epoch都被重新初始化了？
     # hidden = model.init_hidden(train_batch_size)
     # hidden = get_hidden0(model.hidden0)
-    hidden = model.hidden0.repeat(1, train_batch_size, 1)
-    # hidden = None
+    # hidden = model.hidden0.repeat(1, train_batch_size, 1)
+    hidden = None
     # 应该是因为文本数量够多，所以range不长等于bptt，使得每个batch之间没有重合？
     for batch, i in enumerate(range(0, data_source.size(0) - 1, args.max_sql)):
         data, targets = get_batch(corpus.train, i)
