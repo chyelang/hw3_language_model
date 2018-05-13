@@ -86,6 +86,7 @@ class LSTM(nn.Module):
 		x = x.view(x.size(1), -1)
 
 		# Linear mappings
+		# pre_act的行是batch数，列数为hidden size*4
 		preact = self.i2h(x) + self.h2h(h)
 
 		# activations

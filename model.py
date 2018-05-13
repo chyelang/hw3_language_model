@@ -14,6 +14,9 @@ class LMModel(nn.Module):
         self.rnn_type = rnn_type
         if rnn_type == "LSTM":
             self.rnn = nn.LSTM(ninp, nhid, nlayers, dropout=dropout)
+            hidden0 = (torch.zeros(nlayers, 1, nhid).uniform_(-0.1, 0.1),
+                       torch.zeros(nlayers, 1, nhid).uniform_(-0.1, 0.1))
+            self.hidden0 = nn.Parameter(hidden0, requires_grad=True)
         else:
             self.rnn = nn.GRU(ninp, nhid, nlayers, dropout=dropout)
             hidden0 = (torch.zeros(nlayers, 1, nhid).uniform_(-0.1, 0.1))
@@ -37,6 +40,8 @@ class LMModel(nn.Module):
         self.decoder.weight.data.uniform_(-init_uniform, init_uniform)
 
     def forward(self, input, hidden):
+        # if hidden is None:
+        #     hidden = self.hidden0.repeat(1,20,1)
         embeddings = self.drop(self.encoder(input))
         output, hidden = self.rnn(embeddings, hidden)
         # output = torch.transpose(output, 0, 1)

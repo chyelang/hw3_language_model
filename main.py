@@ -38,7 +38,7 @@ parser.add_argument('--tied', type=bool, default=True,
                     help='tie the word embedding and softmax weights')
 parser.add_argument('--seed', type=int, default=1234,
                     help='set random seed')
-parser.add_argument('--cuda', type=bool, default=True,
+parser.add_argument('--cuda', type=bool, default=False,
                     help='use CUDA')
 parser.add_argument('--save_file', type=str, default='./saved_model/model.pt',
                     help='path to save the final model')
@@ -89,12 +89,6 @@ def repackage_hidden(h):
     else:
         return tuple(repackage_hidden(v) for v in h)
 
-def get_hidden0(h):
-    if args.model == 'LSTM':
-        return (h[0].data, h[1].data)
-    else:
-        return (h[0].data)
-
 # Evaluation Function
 # Calculate the average cross-entropy loss between the prediction and the ground truth word.
 # And then exp(average cross-entropy loss) is perplexity.
@@ -105,7 +99,8 @@ def evaluate(corpus):
     nvoc = len(corpus.word_id)
     # hidden = model.init_hidden(valid_batch_size)
     # hidden = get_hidden0(model.hidden0)
-    hidden = model.hidden0.data.repeat(1, valid_batch_size, 1)
+    hidden = model.hidden0.repeat(1, valid_batch_size, 1)
+    # hidden = None
     with torch.no_grad():
         for i in range(0, corpus.valid.size(0) - 1, args.max_sql):
             data, targets = get_batch(data_source, i)
@@ -123,10 +118,13 @@ def train(corpus, opt):
     total_loss = 0.
     start_time = time.time()
     nvoc = len(corpus.word_id)
+
+    # print(next(model.named_parameters()))
     #从这里来看init hidden weight在每个epoch都被重新初始化了？
     # hidden = model.init_hidden(train_batch_size)
     # hidden = get_hidden0(model.hidden0)
-    hidden = model.hidden0.data.repeat(1, train_batch_size, 1)
+    hidden = model.hidden0.repeat(1, train_batch_size, 1)
+    # hidden = None
     # 应该是因为文本数量够多，所以range不长等于bptt，使得每个batch之间没有重合？
     for batch, i in enumerate(range(0, data_source.size(0) - 1, args.max_sql)):
         data, targets = get_batch(corpus.train, i)
@@ -136,6 +134,7 @@ def train(corpus, opt):
         loss.backward()
         torch.nn.utils.clip_grad_norm(model.parameters(), args.clip)
         opt.step()
+        # print(next(model.named_parameters()))
         total_loss += loss.item()
         hidden = repackage_hidden(hidden)
 
