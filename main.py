@@ -38,7 +38,7 @@ parser.add_argument('--tied', type=bool, default=True,
                     help='tie the word embedding and softmax weights')
 parser.add_argument('--seed', type=int, default=1234,
                     help='set random seed')
-parser.add_argument('--cuda', type=bool, default=False,
+parser.add_argument('--cuda', type=bool, default=True,
                     help='use CUDA')
 parser.add_argument('--save_file', type=str, default='./saved_model/model.pt',
                     help='path to save the final model')

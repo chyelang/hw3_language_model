@@ -217,6 +217,7 @@ class LayerNormGRUCell(nn.GRUCell):
 		return g.unsqueeze(0).expand_as(x) * ((x - mean) / (std + self.eps)) + b.unsqueeze(0).expand_as(x)
 
 	def forward(self, x, h):
+		tmp = self.weight_ih.narrow(0, 0, 2 * self.hidden_size)
 		ih_rz = self._layer_norm(
 			torch.mm(x, self.weight_ih.narrow(0, 0, 2 * self.hidden_size).transpose(0, 1)),
 			self.gamma_ih,
@@ -238,14 +239,21 @@ class LayerNormGRUCell(nn.GRUCell):
 		h = (1 - z) * n + z * h
 		return h
 
+class LayerNormGRUCellModule(nn.Module):
+	def __init__(self, input_size, hidden_size, bias=True):
+		super(LayerNormGRUCellModule, self).__init__()
+		self.LayerNormGRUCell = LayerNormGRUCell(input_size, hidden_size, bias)
+
+	def forward(self, x, h):
+		return self.LayerNormGRUCell(x,h)
 
 class LayerNormGRU(nn.Module):
 	def __init__(self, input_size, hidden_size, nlayers, dropout=False):
 		super(LayerNormGRU, self).__init__()
-		self.cell = []
+		self.cell = torch.nn.ModuleList()
 		self.nlayers = nlayers
 		for i in range(self.nlayers):
-			self.cell.append(LayerNormGRUCell(input_size, hidden_size, bias=True))
+			self.cell.append(LayerNormGRUCellModule(input_size, hidden_size, bias=True))
 		self.dropout = dropout
 
 	def forward(self, xs, h):
