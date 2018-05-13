@@ -195,48 +195,44 @@ class LayerNormLSTM(LSTM):
 
 
 class LayerNormGRUCell(nn.GRUCell):
+	# only apply LN to reset gate r and update gate z, not including output gate n
+	"""
+		weight_ih: the learnable input-hidden weights, of shape
+            `(3*hidden_size x input_size)`
+        weight_hh: the learnable hidden-hidden weights, of shape
+            `(3*hidden_size x hidden_size)`
+        bias_ih: the learnable input-hidden bias, of shape `(3*hidden_size)`
+        bias_hh: the learnable hidden-hidden bias, of shape `(3*hidden_size)`
+	"""
 	def __init__(self, input_size, hidden_size, bias=True):
 		super(LayerNormGRUCell, self).__init__(input_size, hidden_size, bias)
 
-		self.gamma_ih = nn.Parameter(torch.ones(3 * self.hidden_size))
-		self.gamma_hh = nn.Parameter(torch.ones(3 * self.hidden_size))
+		self.gamma_ih = nn.Parameter(torch.ones(2 * self.hidden_size))
+		self.gamma_hh = nn.Parameter(torch.ones(2 * self.hidden_size))
 		self.eps = 0
 
-	def _layer_norm_x(self, x, g, b):
+	def _layer_norm(self, x, g, b):
 		mean = x.mean(1).unsqueeze(-1).expand_as(x)
 		std = x.std(1).unsqueeze(-1).expand_as(x)
 		return g.unsqueeze(0).expand_as(x) * ((x - mean) / (std + self.eps)) + b.unsqueeze(0).expand_as(x)
 
-
-	def _layer_norm_h(self, x, g, b):
-		mean = x.mean(1).unsqueeze(-1).expand_as(x)
-		return g.unsqueeze(0).expand_as(x) * (x - mean) + b.unsqueeze(0).expand_as(x)
-
-
 	def forward(self, x, h):
-		ih_rz = self._layer_norm_x(
+		ih_rz = self._layer_norm(
 			torch.mm(x, self.weight_ih.narrow(0, 0, 2 * self.hidden_size).transpose(0, 1)),
-			self.gamma_ih.narrow(0, 0, 2 * self.hidden_size),
+			self.gamma_ih,
 			self.bias_ih.narrow(0, 0, 2 * self.hidden_size))
 
-		hh_rz = self._layer_norm_h(
+		hh_rz = self._layer_norm(
 			torch.mm(h, self.weight_hh.narrow(0, 0, 2 * self.hidden_size).transpose(0, 1)),
-			self.gamma_hh.narrow(0, 0, 2 * self.hidden_size),
+			self.gamma_hh,
 			self.bias_hh.narrow(0, 0, 2 * self.hidden_size))
 
 		rz = torch.sigmoid(ih_rz + hh_rz)
 		r = rz.narrow(1, 0, self.hidden_size)
 		z = rz.narrow(1, self.hidden_size, self.hidden_size)
 
-		ih_n = self._layer_norm_x(
-			torch.mm(x, self.weight_ih.narrow(0, 2 * self.hidden_size, self.hidden_size).transpose(0, 1)),
-			self.gamma_ih.narrow(0, 2 * self.hidden_size, self.hidden_size),
-			self.bias_ih.narrow(0, 2 * self.hidden_size, self.hidden_size))
-
-		hh_n = self._layer_norm_h(
-			torch.mm(h, self.weight_hh.narrow(0, 2 * self.hidden_size, self.hidden_size).transpose(0, 1)),
-			self.gamma_hh.narrow(0, 2 * self.hidden_size, self.hidden_size),
-			self.bias_hh.narrow(0, 2 * self.hidden_size, self.hidden_size))
+		ih_n = torch.mm(x, self.weight_ih.narrow(0, 2 * self.hidden_size, self.hidden_size).transpose(0, 1))
+		hh_n = torch.mm(h, self.weight_hh.narrow(0, 2 * self.hidden_size, self.hidden_size).transpose(0, 1))
 
 		n = torch.tanh(ih_n + r * hh_n)
 		h = (1 - z) * n + z * h
