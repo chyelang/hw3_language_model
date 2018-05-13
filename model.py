@@ -18,7 +18,7 @@ class LMModel(nn.Module):
             self.hidden0 = nn.Parameter(hidden0, requires_grad=True)
         else:
             # self.rnn = nn.GRU(ninp, nhid, nlayers, dropout=dropout)
-            self.rnn = modules.LayerNormGRU(ninp, nhid)
+            self.rnn = modules.LayerNormGRU(ninp, nhid, nlayers, dropout=dropout)
             hidden0 = (torch.zeros(nlayers, 1, nhid).uniform_(-0.1, 0.1))
             self.hidden0 = nn.Parameter(hidden0, requires_grad=True)
         # self.rnn = modules.LayerNormLSTM(ninp, nhid, bias=True, dropout=dropout,

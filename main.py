@@ -20,7 +20,7 @@ parser.add_argument('--ninp', type=int, default=200,
                     help='size of word embeddings(input)')
 parser.add_argument('--nhid', type=int, default=200,
                     help='number of hidden units per layer')
-parser.add_argument('--nlayers', type=int, default=1,
+parser.add_argument('--nlayers', type=int, default=2,
                     help='number of layers')
 parser.add_argument('--lr', type=float, default=0.001,
                     help='initial learning rate')
@@ -156,9 +156,9 @@ def train(corpus, opt):
 best_val_loss = None
 patience = 5
 wait = 0
-# for name, param in model.named_parameters():
-#     if param.requires_grad:
-#         print(name)
+for name, param in model.named_parameters():
+    if param.requires_grad:
+        print(name)
 for epoch in range(1, args.epochs+1):
     epoch_start_time = time.time()
     train(corpus, opt)
@@ -201,7 +201,7 @@ for epoch in range(1, args.epochs+1):
 # Load the best saved model.
 with open(args.save_file, 'rb') as f:
     model = torch.load(f)
-    model.rnn.flatten_parameters()
+    # model.rnn.flatten_parameters()
 
 # Run on test data.
 test_loss = evaluate(corpus)

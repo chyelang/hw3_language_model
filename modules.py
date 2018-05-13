@@ -240,21 +240,29 @@ class LayerNormGRUCell(nn.GRUCell):
 
 
 class LayerNormGRU(nn.Module):
-	def __init__(self, input_size, hidden_size, bias=True):
+	def __init__(self, input_size, hidden_size, nlayers, dropout=False):
 		super(LayerNormGRU, self).__init__()
-		self.cell = LayerNormGRUCell(input_size, hidden_size, bias)
-		self.weight_ih_l0 = self.cell.weight_ih
-		self.weight_hh_l0 = self.cell.weight_hh
-		self.bias_ih_l0 = self.cell.bias_ih
-		self.bias_hh_l0 = self.cell.bias_hh
+		self.cell = []
+		self.nlayers = nlayers
+		for i in range(self.nlayers):
+			self.cell.append(LayerNormGRUCell(input_size, hidden_size, bias=True))
+		self.dropout = dropout
 
 	def forward(self, xs, h):
-		h = h.squeeze(0)
+		# xs: [bptt*batch_size*hidden_size]
+		# h: [nlayers*batch_size*hidden_size]
+		hs = [None]*self.nlayers
 		ys = []
 		for i in range(xs.size(0)):
 			x = xs.narrow(0, i, 1).squeeze(0)
-			h = self.cell(x, h)
-			ys.append(h.unsqueeze(0))
+			for j in range(self.nlayers):
+				hs[j] = self.cell[j](x, h.narrow(0, j, 1).squeeze(0))
+				x = hs[j]
+				if (self.dropout is not False) and (j != self.nlayers-1):
+					x = F.dropout(x, p=self.dropout, training=self.training, inplace=False)
+			ys.append(x.unsqueeze(0))
+			for i in range(self.nlayers):
+				hs[i] = hs[i].unsqueeze(0)
+			h = torch.cat(hs, 0)
 		y = torch.cat(ys, 0)
-		h = h.unsqueeze(0)
 		return y, h
