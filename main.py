@@ -34,17 +34,20 @@ parser.add_argument('--max_sql', type=int, default=35,
                     help='sequence length for bptt')
 parser.add_argument('--dropout', type=float, default=0.2,
                     help='dropout applied to layers (0 = no dropout)')
-parser.add_argument('--layer_norm', type=bool, default=False,
-                    help='layer normalization option')
-parser.add_argument('--tied', type=bool, default=True,
-                    help='tie the word embedding and softmax weights')
-parser.add_argument('--seed', type=int, default=1234,
-                    help='set random seed')
-parser.add_argument('--cuda', type=bool, default=False,
-                    help='use CUDA')
 parser.add_argument('--save_file', type=str, default='./saved_model/model.pt',
                     help='path to save the final model')
+parser.add_argument('--seed', type=int, default=1234,
+                    help='set random seed')
+
+parser.add_argument('--layer_norm', action='store_true',
+                    help='layer normalization option')
+parser.add_argument('--tied', action='store_true',
+                    help='tie the word embedding and softmax weights')
+
+parser.add_argument('--cuda', action='store_true',
+                    help='use CUDA')
 parser.add_argument('--gpu_id', type=int, default=0, help='GPU device id used')
+
 
 args = parser.parse_args()
 if not os.path.exists(os.path.dirname(args.save_file)):
