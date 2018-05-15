@@ -189,7 +189,8 @@ for epoch in range(1, args.epochs+1):
             print("early stop!")
             break
         # Anneal the learning rate if no improvement has been seen in the validation dataset.
-        if lr > 1e-5:
+        if wait >= patience/2 and lr > 1e-4:
+            wait = 0
             lr /= 2.0
             print("lr = {}".format(lr))
             opt = optim.Adam(model.parameters(), lr=lr)
