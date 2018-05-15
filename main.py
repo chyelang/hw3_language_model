@@ -34,6 +34,8 @@ parser.add_argument('--max_sql', type=int, default=35,
                     help='sequence length for bptt')
 parser.add_argument('--dropout', type=float, default=0.2,
                     help='dropout applied to layers (0 = no dropout)')
+parser.add_argument('--layer_norm', type=bool, default=False,
+                    help='layer normalization option')
 parser.add_argument('--tied', type=bool, default=True,
                     help='tie the word embedding and softmax weights')
 parser.add_argument('--seed', type=int, default=1234,
@@ -68,7 +70,7 @@ log_interval = len(corpus.train) // args.max_sql // 15
 
 # build the model
 nvoc = len(corpus.word_id)
-model = model.LMModel(args.model, nvoc, args.ninp, args.nhid, args.nlayers, args.batch_size, args.dropout, args.tied).to(device)
+model = model.LMModel(args.model, nvoc, args.ninp, args.nhid, args.nlayers, args.dropout, args.layer_norm, args.tied).to(device)
 criterion = nn.CrossEntropyLoss()
 lr = args.lr
 opt = optim.Adam(model.parameters(), lr=lr)

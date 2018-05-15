@@ -7,7 +7,7 @@ class LMModel(nn.Module):
     # The word embedding layer have input as a sequence of word index (in the vocabulary) and output a sequence of vector where each one is a word embedding. 
     # The rnn network has input of each word embedding and output a hidden feature corresponding to each word embedding.
     # The output layer has input as the hidden feature and output the probability of each word in the vocabulary.
-    def __init__(self, rnn_type, nvoc, ninp, nhid, nlayers, batch_size, dropout=0.5, tie_weights=True):
+    def __init__(self, rnn_type, nvoc, ninp, nhid, nlayers, dropout=0.5, layer_norm=False, tie_weights=True):
         super(LMModel, self).__init__()
         self.drop = nn.Dropout(dropout)
         self.encoder = nn.Embedding(nvoc, ninp)
@@ -18,7 +18,7 @@ class LMModel(nn.Module):
             self.hidden0 = nn.Parameter(hidden0, requires_grad=True)
         else:
             # self.rnn = nn.GRU(ninp, nhid, nlayers, dropout=dropout)
-            self.rnn = modules.LayerNormGRU(ninp, nhid, nlayers, dropout=dropout)
+            self.rnn = modules.LayerNormGRU(ninp, nhid, nlayers, dropout=dropout, layer_norm=layer_norm)
             hidden0 = (torch.zeros(nlayers, 1, nhid).uniform_(-0.1, 0.1))
             self.hidden0 = nn.Parameter(hidden0, requires_grad=True)
         # self.rnn = modules.LayerNormLSTM(ninp, nhid, bias=True, dropout=dropout,
