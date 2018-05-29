@@ -18,7 +18,7 @@ class LayerNormGRUCell(nn.GRUCell):
 		if layer_norm:
 			self.gamma_ih = nn.Parameter(torch.ones(2 * self.hidden_size))
 			self.gamma_hh = nn.Parameter(torch.ones(2 * self.hidden_size))
-		self.eps = 0
+		self.eps = 1e-5
 		self.layer_norm = layer_norm
 
 	def _layer_norm(self, x, g, b):
@@ -172,6 +172,6 @@ def LayerNormGRUTest():
 	print('LayerNormGRU Test Passed')
 
 if __name__ == '__main__':
-	# LayerNormGRUCellTest()
+	LayerNormGRUCellTest()
 	LayerNormGRUTest()
 

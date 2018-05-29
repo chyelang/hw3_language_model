@@ -7,20 +7,25 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-import data
-import model
+import prepare_data
+from build_model import LMModel
 import os
 
 parser = argparse.ArgumentParser(description='PyTorch ptb Language Model')
 parser.add_argument('--data', type=str, default='./data/ptb',
                     help='location of the data corpus')
+parser.add_argument('--mode', type=str, default='train',
+                    help='want to train or test?')
+parser.add_argument('--test_file', type=str, default='./data/ptb/test.txt',
+                    help='path to the test file')
+
 parser.add_argument('--model', type=str, default='GRU',
                     help='type of recurrent net (LSTM, GRU)')
 parser.add_argument('--ninp', type=int, default=200,
                     help='size of word embeddings(input)')
 parser.add_argument('--nhid', type=int, default=200,
                     help='number of hidden units per layer')
-parser.add_argument('--nlayers', type=int, default=2,
+parser.add_argument('--nlayers', type=int, default=1,
                     help='number of layers')
 parser.add_argument('--lr', type=float, default=0.001,
                     help='initial learning rate')
@@ -63,20 +68,6 @@ if args.cuda:
 else:
     device = torch.device("cpu")
 
-train_batch_size = args.batch_size
-# valid_batch_size = args.batch_size
-valid_batch_size = args.batch_size*2
-
-# load train and valid data
-corpus = data.Corpus(args.data, {"train": train_batch_size, "valid": valid_batch_size})
-log_interval = len(corpus.train) // args.max_sql // 15
-
-# build the model
-nvoc = len(corpus.word_id)
-model = model.LMModel(args.model, nvoc, args.ninp, args.nhid, args.nlayers, args.dropout, args.layer_norm, args.tied).to(device)
-criterion = nn.CrossEntropyLoss()
-lr = args.lr
-opt = optim.Adam(model.parameters(), lr=lr)
 
 def get_batch(data_source, i):
     start_index = i
@@ -97,7 +88,8 @@ def repackage_hidden(h):
 # Evaluation Function
 # Calculate the average cross-entropy loss between the prediction and the ground truth word.
 # And then exp(average cross-entropy loss) is perplexity.
-def evaluate(corpus):
+def evaluate(model, corpus):
+    criterion = nn.CrossEntropyLoss()
     data_source = corpus.valid
     model.eval()
     total_loss = 0.
@@ -115,22 +107,17 @@ def evaluate(corpus):
             hidden = repackage_hidden(hidden)
     return total_loss / len(data_source)
 
+
 # Train Function
-def train(corpus, opt):
+def train(model, corpus, opt, lr, log_interval, epoch):
     # Turn on training mode which enables dropout.
+    criterion = nn.CrossEntropyLoss()
     data_source = corpus.train
     model.train()
     total_loss = 0.
     start_time = time.time()
     nvoc = len(corpus.word_id)
-
-    # print(next(model.named_parameters()))
-    #从这里来看init hidden weight在每个epoch都被重新初始化了？
-    # hidden = model.init_hidden(train_batch_size)
-    # hidden = get_hidden0(model.hidden0)
-    # hidden = model.hidden0.repeat(1, train_batch_size, 1)
     hidden = None
-    # 应该是因为文本数量够多，所以range不长等于bptt，使得每个batch之间没有重合？
     for batch, i in enumerate(range(0, data_source.size(0) - 1, args.max_sql)):
         data, targets = get_batch(corpus.train, i)
         model.zero_grad()
@@ -157,62 +144,110 @@ def train(corpus, opt):
             total_loss = 0
             start_time = time.time()
 
-# Loop over epochs.
-best_val_loss = None
-patience = 5
-wait = 0
-for name, param in model.named_parameters():
-    if param.requires_grad:
-        print(name)
-for epoch in range(1, args.epochs+1):
-    epoch_start_time = time.time()
-    train(corpus, opt)
-    val_loss = evaluate(corpus)
-    try:
-        ppl = math.exp(val_loss)
-    except OverflowError:
-        ppl = float('inf')
-    print('-' * 106)
-    print('{} | end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
-          'valid ppl {:8.2f}'.format(datetime.now().strftime('%m-%d %H:%M:%S'), epoch, (time.time() - epoch_start_time),
-                                     val_loss, ppl))
-    print('-' * 106)
-    # Save the model if the validation loss is the best we've seen so far.
-    if not best_val_loss or val_loss < best_val_loss:
-        with open(args.save_file, 'wb') as f:
-            torch.save(model, f)
-        best_val_loss = val_loss
-        wait = 0
-    else:
-        wait += 1
-        if wait >= patience:
-            print("early stop!")
-            break
-        # Anneal the learning rate if no improvement has been seen in the validation dataset.
-        if wait >= patience/2 and lr > 1e-4:
+
+def train_main():
+    # load train and valid data
+    train_batch_size = args.batch_size
+    valid_batch_size = args.batch_size * 2
+    corpus = prepare_data.Corpus(args.data, {"train": train_batch_size, "valid": valid_batch_size})
+    log_interval = len(corpus.train) // args.max_sql // 15
+
+    # build the model
+    nvoc = len(corpus.word_id) # nvoc = 10000 for the saved model
+    model = LMModel(args.model, nvoc, args.ninp, args.nhid, args.nlayers, args.dropout, args.layer_norm,
+                          args.tied).to(device)
+    lr = args.lr
+    opt = optim.Adam(model.parameters(), lr=lr)
+
+    # Loop over epochs.
+    best_val_loss = None
+    patience = 5
+    wait = 0
+    print("info: parameters in model:")
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            print(name)
+    for epoch in range(1, args.epochs + 1):
+        epoch_start_time = time.time()
+        train(model, corpus, opt, lr, log_interval, epoch)
+        val_loss = evaluate(model, corpus)
+        try:
+            ppl = math.exp(val_loss)
+        except OverflowError:
+            ppl = float('inf')
+        print('-' * 106)
+        print('{} | end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
+              'valid ppl {:8.2f}'.format(datetime.now().strftime('%m-%d %H:%M:%S'), epoch,
+                                         (time.time() - epoch_start_time),
+                                         val_loss, ppl))
+        print('-' * 106)
+        # Save the model if the validation loss is the best we've seen so far.
+        if not best_val_loss or val_loss < best_val_loss:
+            with open(args.save_file, 'wb') as f:
+                torch.save(model, f)
+            best_val_loss = val_loss
             wait = 0
-            lr /= 2.0
-            print("lr = {}".format(lr))
-            opt = optim.Adam(model.parameters(), lr=lr)
-    # use variant batch_size
-    if train_batch_size < 200:
-        train_batch_size = int(train_batch_size*2)
-        if train_batch_size > 200:
-            train_batch_size = 200
-        valid_batch_size = train_batch_size*2
-        corpus = data.Corpus(args.data, {"train": train_batch_size, "valid": valid_batch_size})
-        log_interval = len(corpus.train) // args.max_sql // 15
-        print("train_batch_size = {0}, log_interval = {1}".format(train_batch_size, log_interval))
+        else:
+            wait += 1
+            if wait >= patience:
+                print("early stop!")
+                break
+            # Anneal the learning rate if no improvement has been seen in the validation dataset.
+            if wait >= patience / 2 and lr > 1e-4:
+                wait = 0
+                lr /= 2.0
+                print("lr = {}".format(lr))
+                opt = optim.Adam(model.parameters(), lr=lr)
+        # use variant batch_size
+        if train_batch_size < 200:
+            train_batch_size = int(train_batch_size * 2)
+            if train_batch_size > 200:
+                train_batch_size = 200
+            valid_batch_size = train_batch_size * 2
+            corpus = prepare_data.Corpus(args.data, {"train": train_batch_size, "valid": valid_batch_size})
+            log_interval = len(corpus.train) // args.max_sql // 15
+            print("train_batch_size = {0}, log_interval = {1}".format(train_batch_size, log_interval))
 
-# Load the best saved model.
-with open(args.save_file, 'rb') as f:
-    model = torch.load(f)
-    # model.rnn.flatten_parameters()
+def test_main():
+    # load test data
+    if not os.path.exists(args.test_file):
+        print("error: the specified test file doesn't exist.")
+        return
+    if not os.path.exists(args.save_file):
+        print("error: the saved model file doesn't exist.")
+        return
+    test_batch_size = args.batch_size * 2
+    corpus = prepare_data.Corpus(args.test_file, {"test": test_batch_size}, mode="test")
+    # Load the best saved model.
+    with open(args.save_file, 'rb') as f:
+        model = torch.load(f)
 
-# Run on test data.
-test_loss = evaluate(corpus)
-print('=' * 106)
-print('{} | End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(
-    datetime.now().strftime('%m-%d %H:%M:%S'), test_loss, math.exp(test_loss)))
-print('=' * 106)
+    # Run on test data.
+    criterion = nn.CrossEntropyLoss()
+    data_source = corpus.test
+    model.eval()
+    total_loss = 0.
+    nvoc = 10000 # nvoc = 10000 for the saved model
+    hidden = None
+    with torch.no_grad():
+        for i in range(0, corpus.test.size(0) - 1, args.max_sql):
+            data, targets = get_batch(data_source, i)
+            output, hidden = model(data, hidden)
+            output_flat = output.view(-1, nvoc)
+            total_loss += len(data) * criterion(output_flat, targets).item()
+            hidden = repackage_hidden(hidden)
+    test_loss = total_loss / len(data_source)
+    print('=' * 106)
+    print('{} | end of testing | test loss {:5.2f} | test ppl {:8.2f}'.format(
+        datetime.now().strftime('%m-%d %H:%M:%S'), test_loss, math.exp(test_loss)))
+    print('=' * 106)
 
+if __name__ == '__main__':
+    if args.mode == "train":
+        print("info: starting training...")
+        train_main()
+    elif args.mode == "test":
+        print("info: starting testing...")
+        test_main()
+    else:
+        print("error: invalid mode")

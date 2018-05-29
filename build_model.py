@@ -21,8 +21,6 @@ class LMModel(nn.Module):
             self.rnn = modules.LayerNormGRU(ninp, nhid, nlayers, dropout=dropout, layer_norm=layer_norm)
             hidden0 = (torch.zeros(nlayers, 1, nhid).uniform_(-0.1, 0.1))
             self.hidden0 = nn.Parameter(hidden0, requires_grad=True)
-        # self.rnn = modules.LayerNormLSTM(ninp, nhid, bias=True, dropout=dropout,
-        #               dropout_method='pytorch', ln_preact=True, learnable=True)
         self.decoder = nn.Linear(nhid, nvoc)
         if tie_weights:
             if nhid != ninp:
@@ -54,15 +52,6 @@ class LMModel(nn.Module):
         return decoded.view(output.size(0), output.size(1), decoded.size(1)), hidden
 
     def init_hidden(self, bsz):
-        # weight = next(self.parameters())
-        # if self.rnn_type == 'LSTM':
-        #      #这里所说的hidden state包括ht和ct，lstm两者都有，而gru中只有ct
-        #      #这里的init weight也被加入到了可学习的参数中？
-        #     return (weight.new_zeros(self.nlayers, bsz, self.nhid),
-        #             weight.new_zeros(self.nlayers, bsz, self.nhid))
-        # else:
-        #     return weight.new_zeros(self.nlayers, bsz, self.nhid)
-
         if self.rnn_type == 'LSTM':
             self.hidden0 = (torch.nn.Parameter(torch.randn(self.nlayers, bsz, self.nhid), requires_grad=True).type(torch.FloatTensor),
             torch.nn.Parameter(torch.randn(self.nlayers, bsz, self.nhid), requires_grad=True).type(torch.FloatTensor))
