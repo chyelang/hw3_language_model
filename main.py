@@ -194,7 +194,7 @@ def train_main():
                 break
             # Anneal the learning rate if no improvement has been seen in the validation dataset.
             if wait >= patience / 2 and lr > 1e-4:
-                wait = 0
+                wait = 0  # maybe this line should be removed because it doesn't improve things
                 lr /= 2.0
                 print("lr = {}".format(lr))
                 opt = optim.Adam(model.parameters(), lr=lr)
@@ -220,7 +220,8 @@ def test_main():
     corpus = prepare_data.Corpus(args.test_file, {"test": test_batch_size}, mode="test")
     # Load the best saved model.
     with open(args.save_file, 'rb') as f:
-        model = torch.load(f)
+        # model = torch.load(f)
+        model = torch.load(f, map_location=lambda storage, loc: storage)
 
     # Run on test data.
     criterion = nn.CrossEntropyLoss()
@@ -237,10 +238,10 @@ def test_main():
             total_loss += len(data) * criterion(output_flat, targets).item()
             hidden = repackage_hidden(hidden)
     test_loss = total_loss / len(data_source)
-    print('=' * 106)
+    print('=' * 70)
     print('{} | end of testing | test loss {:5.2f} | test ppl {:8.2f}'.format(
         datetime.now().strftime('%m-%d %H:%M:%S'), test_loss, math.exp(test_loss)))
-    print('=' * 106)
+    print('=' * 70)
 
 if __name__ == '__main__':
     if args.mode == "train":

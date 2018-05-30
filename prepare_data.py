@@ -1,5 +1,6 @@
 import os
 import torch
+import pickle
 
 class Corpus(object):
     def __init__(self, path, batch_size, mode='train'):
@@ -8,6 +9,7 @@ class Corpus(object):
         print('preparing corpus...')
         self.batch_size = batch_size
         if mode == 'train':
+            self.has_word_id = False
             self.train = self.tokenize(os.path.join(path, 'train.txt'))
             self.valid = self.tokenize(os.path.join(path, 'valid.txt'))
             self.train_batch_num = self.train.size(0) // self.batch_size["train"]
@@ -16,7 +18,12 @@ class Corpus(object):
             self.valid = self.valid.narrow(0, 0, self.batch_size["valid"] * self.valid_batch_num)
             self.train = self.train.view(self.batch_size["train"], -1).t().contiguous()
             self.valid = self.valid.view(self.batch_size["valid"], -1).t().contiguous()
+            with open(os.path.join(path, 'word_id.pkl'), 'wb') as f:
+                pickle.dump(self.word_id, f)
         elif mode == "test":
+            self.has_word_id = True
+            with open(os.path.join('./data/ptb', 'word_id.pkl'), 'rb') as f:
+                self.word_id = pickle.load(f)
             self.test = self.tokenize(path)
             self.test_batch_num = self.test.size(0) // self.batch_size["test"]
             self.test = self.test.narrow(0, 0, self.batch_size["test"] * self.test_batch_num)
@@ -27,14 +34,17 @@ class Corpus(object):
     def tokenize(self, file_name):
         assert os.path.exists(file_name)
         file_lines = open(file_name, 'r').readlines()
+
         num_of_words = 0
         for line in file_lines:
             words = line.split() + ['<eos>']
             num_of_words += len(words)
-            for word in words:
-                if word not in self.word_id:
-                    self.word_id[word] = len(self.vocabulary)
-                    self.vocabulary.append(word)
+            if not self.has_word_id:
+                for word in words:
+                    if word not in self.word_id:
+                        self.word_id[word] = len(self.vocabulary)
+                        self.vocabulary.append(word)
+
         file_tokens = torch.LongTensor(num_of_words)
         token_id = 0
         for line in file_lines:
