@@ -219,6 +219,7 @@ def test_main():
     test_batch_size = args.batch_size * 2
     corpus = prepare_data.Corpus(args.test_file, {"test": test_batch_size}, mode="test")
     # Load the best saved model.
+    print('info: loading model...')
     with open(args.save_file, 'rb') as f:
         # model = torch.load(f)
         model = torch.load(f, map_location=lambda storage, loc: storage)
@@ -230,8 +231,13 @@ def test_main():
     total_loss = 0.
     nvoc = 10000 # nvoc = 10000 for the saved model
     hidden = None
+    print('info: doing test with cpu... this might take some time')
+    count = 0
     with torch.no_grad():
         for i in range(0, corpus.test.size(0) - 1, args.max_sql):
+            if count%10 == 0:
+                print('info: evaluating %dth/%d time point...'%(i, corpus.test.size(0)))
+            count += 1
             data, targets = get_batch(data_source, i)
             output, hidden = model(data, hidden)
             output_flat = output.view(-1, nvoc)

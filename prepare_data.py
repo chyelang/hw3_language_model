@@ -6,7 +6,7 @@ class Corpus(object):
     def __init__(self, path, batch_size, mode='train'):
         self.vocabulary = []
         self.word_id = {}
-        print('preparing corpus...')
+        print('info: preparing corpus...')
         self.batch_size = batch_size
         if mode == 'train':
             self.has_word_id = False
