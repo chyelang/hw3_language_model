@@ -223,6 +223,7 @@ def test_main():
     with open(args.save_file, 'rb') as f:
         # model = torch.load(f)
         model = torch.load(f, map_location=lambda storage, loc: storage)
+        model = model.to(device)
 
     # Run on test data.
     criterion = nn.CrossEntropyLoss()
@@ -231,7 +232,6 @@ def test_main():
     total_loss = 0.
     nvoc = 10000 # nvoc = 10000 for the saved model
     hidden = None
-    print('info: doing test with cpu... this might take some time')
     count = 0
     with torch.no_grad():
         for i in range(0, corpus.test.size(0) - 1, args.max_sql):
@@ -254,7 +254,7 @@ if __name__ == '__main__':
         print("info: starting training...")
         train_main()
     elif args.mode == "test":
-        print("info: starting testing...")
+        print("info: starting testing...this might take some time if you didn't use --cuda")
         test_main()
     else:
         print("error: invalid mode")
