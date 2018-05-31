@@ -30,7 +30,7 @@ by Charles
 在modules.py中，首先实现了LayerNormGRUCell类。在torch.nn.GRUCell中，重置门r、更新门z、输出门n和隐状态h的基本更新公式如下所示，本作业在其基础上引入了新的可训练参数对重置门r输出和更新门z输出的正则化。为提高效率，公式中的所有矩阵运算都直接调用torch.mm完成。
 
 <div  align="center">    
-<img src="./image/gru_expression.jpg" width = "500" height = "250" align=center />
+<img src="./image/gru_expression.jpg" width = "500" height = "200" align=center />
 </div>
 
 为构建多层的GRU网络，本作业进一步将LayerNormGRUCell封装在了LayerNormGRUCellModule中，以便借助torch.nn.ModuleList容器管理多个GRU Cell。最后在LayerNormGRU类中，程序利用一个for循环构建起多层的GRU网络，并对非最后一层输出进行正则化。总结来说，用户可通过LayerNormGRU(input\_size, hidden\_size, nlayers, dropout=0.0, bias=True, layer\_norm=False)类来建立带LN、dropout的多层GRU。
@@ -70,9 +70,9 @@ modules.py中还包含了LayerNormGRUCellTest()和LayerNormGRUTest()两个测试
 | 实验编号 | ninp/nhid | nlayers | batch size | val pp |
 | --- | --- | --- | --- | --- |
 | 3 | 1500/1500 | 2 | 固定为100 | 94.74 |
-| 4 | 1500/1500 | 固定为256 | 94.64 |
-| 5 | 1500/1500 | 从20开始，增长到200 | 93.18 |
-| 6 | 1500/1500 | 从10开始，增长到384 | 99.30 |
+| 4 | 1500/1500 | 2 | 固定为256 | 94.64 |
+| 5 | 1500/1500 | 2 | 从20开始，增长到200 | 93.18 |
+| 6 | 1500/1500 | 2 | 从10开始，增长到384 | 99.30 |
 
  通过比较实验2、3、4，可知本任务的最佳batch size在200左右，比较实验4、5、6，可知采取动态调整batch size的方式有助于提升模型精度，但过大的batch size则会损害模型精度。接下来的表中若无特别说明，都将将采用实验5所确定的batch size调整策略，
 
