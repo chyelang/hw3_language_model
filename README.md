@@ -30,7 +30,7 @@ by Charles
 在modules.py中，首先实现了LayerNormGRUCell类。在torch.nn.GRUCell中，重置门r、更新门z、输出门n和隐状态h的基本更新公式如下所示，本作业在其基础上引入了新的可训练参数对重置门r输出和更新门z输出的正则化。为提高效率，公式中的所有矩阵运算都直接调用torch.mm完成。
 
 <div  align="center">    
-<img src="./image/gru_expression.jpg" width = "400" height = "300" align=center />
+<img src="./image/gru_expression.jpg" width = "500" height = "250" align=center />
 </div>
 
 为构建多层的GRU网络，本作业进一步将LayerNormGRUCell封装在了LayerNormGRUCellModule中，以便借助torch.nn.ModuleList容器管理多个GRU Cell。最后在LayerNormGRU类中，程序利用一个for循环构建起多层的GRU网络，并对非最后一层输出进行正则化。总结来说，用户可通过LayerNormGRU(input\_size, hidden\_size, nlayers, dropout=0.0, bias=True, layer\_norm=False)类来建立带LN、dropout的多层GRU。
